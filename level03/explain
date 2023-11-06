@@ -1,0 +1,96 @@
+### Level03
+
+Dans la fonction main :
+
+Il y a un scanf qui recupere notre input (password)
+Ensuite, il y un appel a la fonction test() avec comme arguments, notre input et la valeur '0x1337d00d' soit 322424845 en decimal.
+
+	int main(void)
+	
+	[...]
+	
+	scanf(*(esp + 4));
+    eax = *(esp + 32);
+    *(__size32*)(esp + 8) = 0x1337d00d;
+    *(__size32*)(esp + 4) = eax;
+    test(*(esp + 4), *(esp + 8));
+	
+	[...]
+
+
+Dans la fonction test :
+
+Si le resultat de 322424845 - input est superieur a 22 alors il appelle la fonction decrypt avec un argument v1 qui est aleatoire.
+Sinon il appelle la fonction decrypt avec comme argument la valeur p2 - p1.
+
+	if( p2 - p1 < 22 ) {
+		goto *(&data_0x9F0 + (p2 - p1) * 4);
+	} else {
+		v1 = rand_2();
+		decrypt( v1 );
+		return;
+	}
+
+
+Dans la fonction decrypt :
+
+Elle recoit en argument 'p1' qui est passee dans la fonction test().
+Cet argument sera utilise pour effectue un XOR sur toutes les valeurs du tableau local_21[] :
+
+	local_21 = 0x757c7d51
+	movl   $0x757c7d51,-0x1d(%ebp)
+
+Sachant que local_21 est compare a la string "Congratulations!" de taille 17 ensuite.
+
+Si on affiche dans gdb :
+
+	(gdb) x/17x $ebp-0x1d
+	0xffffd68b:	0x51	0x7d	0x7c	0x75	0x60	0x73	0x66	0x67
+	0xffffd693:	0x7e	0x73	0x66	0x7b	0x7d	0x7c	0x61	0x33
+	0xffffd69b:	0x00
+
+On retrouve la string :
+
+	Q}|u`sfg~sf{}|a3
+
+Une boucle dans la fonction va effectue un XOR avec la valeur 'p1' sur chaque index de la chaine de caracteres.
+
+	local_0x21[i] ^= p1;
+
+A la fin de la fonction, on a un strncmp qui compare "Congratulations!" et notre chaine decryptee.
+Si les deux chaines sont egaux alors le programme ouvre un /bin/sh sinon cela affiche "Invalid password"
+
+Notre argument p1 dans decrypt() est le resultat de notre 322424845 - input dans notre fonction test()
+Sachant que le resultat doit etre inferieur a 22, il y a 21 possibilites en exluant le '0'.
+
+322424845 - 22 = 322424823
+
+Donc l'input a remplir dans scanf est compris entre 322424845 et 322424823.
+Pour obtenir le 'C' de "Congratulations!" a partir de 'Q' on sait que l'on peut faire un XOR de 18.
+Nous verifions pour tous les caracteres du mots :
+
+	Q ^ 18 = C
+	} ^ 18 = o
+	| ^ 18 = n
+	u ^ 18 = g
+	` ^ 18 = r
+	s ^ 18 = a
+	f ^ 18 = t
+	g ^ 18 = u
+	~ ^ 18 = l
+	s ^ 18 = a
+	f ^ 18 = t
+	{ ^ 18 = i
+	} ^ 18 = o
+	| ^ 18 = n
+	a ^ 18 = s
+	3 ^ 18 = !
+
+On en deduit que la valeur de p1 est 18 donc 
+
+	322424845 - input = 18
+	322424845 - 18 = 322424827
+
+Formule final :
+
+	(python -c 'print "322424827"'; cat -) | ./level03
