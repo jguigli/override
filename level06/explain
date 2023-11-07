@@ -1,69 +1,53 @@
 ### Level06
 
+La fonction main de ce programme nous demande de renseigner un login ainsi qu'un numero de serie.
+Ensuite la fonction auth() est appelle avec comme arguments le login et le numero de serie.
+Si le retour de auth() est de 0 alors le main execute /bin/sh.
 
-sum < 5
+Dans la fonction auth(), il y a plusieurs conditions a respecter pour que la fonction ne retourne pas 1 :
+- La longueur du login doit etre superieur a 6.
+- Le retour de ptrace doit etre de 0 (supposant qu'on utilise pas de debugueur).
+- Chaque caracteres du login doit etre superieur a 31.
+- Le numero de serie doit etre egale au hash du login.
 
-1 2 3 4 5
+A partir de ces informations, on va utiliser : jguigli (7 caracteres) pour trouver le bon numero de serie.
+Sachant qu'on peut modifier le retour de ptrace() dans GDB pour passer cette condition, on va pouvoir regarder la valeur du hash de 'jguigli' pour renseigner par la suite le bon numero de serie.
 
-sum ^ 0x1337 + 0x5eeded = 0
-sum ^ 4919 + 6221293 = 0
-sum ^ 1001100110111 + 10111101110110111101101 = 0
+On utilise GDB sur le binaire :
 
-sum ^ 1001100110111 = -10111101110110111101101
-sum = -10111101110110111101101 ^ 1001100110111
-sum = -10110110010011010010010
-sum = -71312650
-
--10111101110110111101101
-^
-000000000001001100110111
-=
-010111111111111011011010
--10110110010011010010010
+    gdb ./level06
 
 
+On met un breakpoint a l'instruction suivant ptrace() :
 
-int32_t __cdecl auth( int32_t p1, int32_t p2 )
-{
-    uint32_t v5;
-    uint32_t v6;
-    int32_t v4;
-    uint32_t local_0x18; // [esp-24]
-    unsigned int v1; // eax
-    unsigned int v2; // eax
-    int32_t v3; // eax
-    int32_t v7; // eax
+    (gdb) b *main+114
 
-    v1 = strcspn_2( p1, &data_0xA63 );
-    *(v1 + p1) = 0;
-    v2 = strnlen_2( p1, 32 );
-    if( v2 < 6 ) {
-        v7 = 1;
-    } else {
-        v3 = ptrace_2( 0, 0, 1, 0 );
-        if( v3 == -1 ) {
-            puts_2( &data_0xA68 );
-            puts_2( &data_0xA8C );
-            puts_2( &data_0xAB0 );
-            v7 = 1;
-        } else {
-            v4 = ((int8_t)*(p1 + 3) ^ 0x1337) + (int8_t)6221293;
-            local_0x18 = 0;
-            while( local_0x18 < v2 ) {
-                v5 = (int8_t)*(local_0x18 + p1) < 31 | *(local_0x18 + p1) == 31;
-                if( v5 == 1 ) {
-                    return 1;
-                }
-                v6 = (((int8_t)*(local_0x18 + p1) ^ v4) - ((uint64_t)(uint32_t)2284010283 * (uint32_t)((int8_t)*(local_0x18 + p1) ^ v4) >> 32)) / 2 + ((uint64_t)(uint32_t)2284010283 * (uint32_t)((int8_t)*(local_0x18 + p1) ^ v4) >> 32);
-                v4 += ((int8_t)*(local_0x18 + p1) ^ v4) - v6 / 1024 * 1337;
-                local_0x18 += 1;
-            }
-            if( v4 != p2 ) {
-                v7 = 1;
-            } else {
-                v7 = 0;
-            }
-        }
-    }
-    return v7;
-}
+    [...]
+    0x080487b5 <+109>:	call   0x80485f0 <ptrace@plt>
+    0x080487ba <+114>:	cmp    $0xffffffff,%eax
+    [...]
+
+Ici le programme compare $eax (retour de ptrace) a -1. On modifie la valeur dans $eax :
+
+    set $eax=0
+
+On met ensuite un breakpoint sur la comparaison entre le numero de serie ($eax) et le hash (-0x10(%ebp)) :
+
+    (gdb) b *main+286
+
+    [...]
+    0x08048866 <+286>:	cmp    -0x10(%ebp),%eax
+    0x08048869 <+289>:	je     0x8048872 <auth+298>
+    0x0804886b <+291>:	mov    $0x1,%eax
+    0x08048870 <+296>:	jmp    0x8048877 <auth+303>
+    0x08048872 <+298>:	mov    $0x0,%eax
+    [...]
+
+On regarde la valeur du hash et on obtient la valeur suivante :
+
+    (gdb) x/d $ebp-0x10
+    0xffffd698:	6233788
+
+On peut maintenant renseigner le login 'jguigli' ainsi que le serial '6233788' pour ouvrir un shell.
+
+

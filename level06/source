@@ -1,42 +1,66 @@
 #include <stdio.h>
 
-int auth(char* input)
+int auth(char *login, unsigned int serial)
 {
-    int len = strnlen(input, 32);
-    if (len > 5) {
+    size_t last;
+    int local_18;
+    unsigned int hash;
+    
+    last = strcspn(login,"\n");
+    login[last] = '\0';
+    int len = strnlen(login,0x20);
+    if (len < 6) 
+    {
         return 1;
     }
-    if (ptrace(0, 0, 1, 0) == -1) {
-        puts("You are not allowed to debug this program.");
-        return 1;
-    }
-    int sum = 0;
-    for (int i = 0; i < len; i++) {
-        if (input[i] > 0x1f) {
-            sum += input[i];
-        } else {
+    else
+    {
+        if (ptrace(0, 0, 1, 0) == -1) 
+        {
+            puts(".---------------------------.");
+            puts("| !! TAMPERING DETECTED !!  |");
+            puts("\'---------------------------\'");
             return 1;
         }
+        else 
+        {
+            hash = ((int)login[3] ^ 0x1337U) + 0x5eeded;
+            for (int i = 0; i < len; i++) 
+            {
+                if (login[i] < ' ') 
+                {
+                    return 1;
+                }
+                hash = hash + ((int)login[i] ^ hash) % 0x539;
+            }
+            if (serial == hash) 
+                return 0;
+        }
     }
-    if (sum ^ 0x1337 + 0x5eeded == 0) {
-        return 0;
-    } else {
-        return 1;
-    }
+  return 1;
 }
 
-int main(int argc, char* argv[])
+int main(void)
 {
-    printf("Enter password: ");
-    char password[32];
-    fgets(password, sizeof(password), stdin);
+    char login[32];
+    int local_14;
+    unsigned int serial;
+    
+    puts("***********************************");
+    puts("*\t\tlevel06\t\t  *");
+    puts("***********************************");
+    printf("-> Enter Login: ");
+    fgets(login, 0x20, stdin);
+    puts("***********************************");
+    puts("***** NEW ACCOUNT DETECTED ********");
+    puts("***********************************");
+    printf("-> Enter Serial: ");
+    scanf(serial);
 
-    if (!auth(password)) {
-        printf("Access granted.\n");
+    if (!auth(login, serial)) 
+    {
+        puts("Authenticated!");
         system("/bin/sh");
-    } else {
-        printf("Access denied.\n");
     }
-
     return 0;
 }
