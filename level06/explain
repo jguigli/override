@@ -1,0 +1,69 @@
+### Level06
+
+
+sum < 5
+
+1 2 3 4 5
+
+sum ^ 0x1337 + 0x5eeded = 0
+sum ^ 4919 + 6221293 = 0
+sum ^ 1001100110111 + 10111101110110111101101 = 0
+
+sum ^ 1001100110111 = -10111101110110111101101
+sum = -10111101110110111101101 ^ 1001100110111
+sum = -10110110010011010010010
+sum = -71312650
+
+-10111101110110111101101
+^
+000000000001001100110111
+=
+010111111111111011011010
+-10110110010011010010010
+
+
+
+int32_t __cdecl auth( int32_t p1, int32_t p2 )
+{
+    uint32_t v5;
+    uint32_t v6;
+    int32_t v4;
+    uint32_t local_0x18; // [esp-24]
+    unsigned int v1; // eax
+    unsigned int v2; // eax
+    int32_t v3; // eax
+    int32_t v7; // eax
+
+    v1 = strcspn_2( p1, &data_0xA63 );
+    *(v1 + p1) = 0;
+    v2 = strnlen_2( p1, 32 );
+    if( v2 < 6 ) {
+        v7 = 1;
+    } else {
+        v3 = ptrace_2( 0, 0, 1, 0 );
+        if( v3 == -1 ) {
+            puts_2( &data_0xA68 );
+            puts_2( &data_0xA8C );
+            puts_2( &data_0xAB0 );
+            v7 = 1;
+        } else {
+            v4 = ((int8_t)*(p1 + 3) ^ 0x1337) + (int8_t)6221293;
+            local_0x18 = 0;
+            while( local_0x18 < v2 ) {
+                v5 = (int8_t)*(local_0x18 + p1) < 31 | *(local_0x18 + p1) == 31;
+                if( v5 == 1 ) {
+                    return 1;
+                }
+                v6 = (((int8_t)*(local_0x18 + p1) ^ v4) - ((uint64_t)(uint32_t)2284010283 * (uint32_t)((int8_t)*(local_0x18 + p1) ^ v4) >> 32)) / 2 + ((uint64_t)(uint32_t)2284010283 * (uint32_t)((int8_t)*(local_0x18 + p1) ^ v4) >> 32);
+                v4 += ((int8_t)*(local_0x18 + p1) ^ v4) - v6 / 1024 * 1337;
+                local_0x18 += 1;
+            }
+            if( v4 != p2 ) {
+                v7 = 1;
+            } else {
+                v7 = 0;
+            }
+        }
+    }
+    return v7;
+}

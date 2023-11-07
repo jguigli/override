@@ -1,0 +1,42 @@
+#include <stdio.h>
+
+int auth(char* input)
+{
+    int len = strnlen(input, 32);
+    if (len > 5) {
+        return 1;
+    }
+    if (ptrace(0, 0, 1, 0) == -1) {
+        puts("You are not allowed to debug this program.");
+        return 1;
+    }
+    int sum = 0;
+    for (int i = 0; i < len; i++) {
+        if (input[i] > 0x1f) {
+            sum += input[i];
+        } else {
+            return 1;
+        }
+    }
+    if (sum ^ 0x1337 + 0x5eeded == 0) {
+        return 0;
+    } else {
+        return 1;
+    }
+}
+
+int main(int argc, char* argv[])
+{
+    printf("Enter password: ");
+    char password[32];
+    fgets(password, sizeof(password), stdin);
+
+    if (!auth(password)) {
+        printf("Access granted.\n");
+        system("/bin/sh");
+    } else {
+        printf("Access denied.\n");
+    }
+
+    return 0;
+}
