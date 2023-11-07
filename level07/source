@@ -63,7 +63,7 @@ int main() {
             printf("Enter a number to store: ");
             scanf("%d", &value);
             clearBuffer(command);
-            if (store_number(numbers))
+            if (!store_number(numbers))
                 printf(" Completed %s command successfully\n", command);
         }
         else if (strcmp(command, "read") == 0)
@@ -72,7 +72,7 @@ int main() {
             printf("Enter the index to read: ");
             scanf("%d", &index);
             clearBuffer(command);
-            if (read_number(numbers))
+            if (!read_number(numbers))
                 printf(" Completed %s command successfully\n", command);
         }
         else if (strcmp(command, "quit") == 0)
