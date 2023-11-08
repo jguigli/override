@@ -1,0 +1,24 @@
+### LEVEL07
+
+saved eip read_number: 0x8048930
+
+0x64616572
+
+0x08048a09
+
+eip: 0x80486dd
+
+saved eip: 0x8048930i
+
+0x80486ddi
+
+
+eip = 114: 0xf7e45513
+
+Pour ecrire nb % 3 == 0: (UNINTMAX + 1) / 4 + 114
+
+4294967296 / 4 + 114 = 1073741938
+
+0xf7e6aed0
+
+0xf7f897ec
