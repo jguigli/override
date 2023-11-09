@@ -1,0 +1,37 @@
+### Level08
+
+Ce programme prend un nom de fichier en argument :
+
+	./level08 [filename]
+
+Il tente d'ouvrir notre fichier pour ensuite creer un backup de celui-ci dans le dossier existant backups/
+A priori, il n'y a pas de faille pour ouvrir un shell avec les droits du level09.
+Du coup, on exploite directement l'utilite du programme pour lire le pass du level09 :
+
+	./level08 /home/users/level09/.pass
+
+On obtient l'erreur suivante :
+
+	ERROR: Failed to open ./backups//home/users/level09/.pass
+
+En effet, le fichier backup est cree dans le programme avec le nom ./backups/[filename] :
+
+	snprintf(backup_path, sizeof(backup_path), "./backups/%s", argv[1]);
+
+Donc il prendra automatiquement le nom './backups//home/users/level09/.pass',
+ce a quoi le programme repondra qu'il ne peut creer de tel fichier.
+
+Il faut donc creer le dossier ./backups/home/users/level09/ avec 'mkdir -p' pour qu'il puisse correctement creer le backup.
+Puisqu'on ne peut creer de fichier dans le home du level08, on se dirige vers le dossier /tmp
+Ensuite, on va creer un dossier 'backups/home/users/level09/' dans /tmp pour remplacer celui dans le home du level08.
+
+	cd /tmp
+	mkdir -p ./backups/home/users/level09/
+
+On peut maintenant executer le programme level08 a partir de /tmp avec comme argument le chemin du .pass level09 :
+
+	/home/users/level08 /home/users/level09/.pass
+
+On lit le fichier backup et on obtient le flag :
+
+	cat backups/home/users/level09/.pass
