@@ -8,7 +8,8 @@ void secret_backdoor(void)
   return;
 }
 
-void set_msg(char *message) {
+void set_msg(char *message)
+{
     char buffer[128] = {0};
 
     puts(">: Msg @Unix-Dude");
@@ -17,7 +18,8 @@ void set_msg(char *message) {
     strncpy(message, buffer, 140);
 }
 
-void set_username(char *username) {
+void set_username(char *username)
+{
     char input[17] = {0};
 
     puts(">: Enter your username");
@@ -28,7 +30,8 @@ void set_username(char *username) {
     printf(">: Welcome, %s", username);
 }
 
-void handle_msg(void) {
+void handle_msg(void)
+{
     char username[140] = {0};
 
     set_username(username);
@@ -36,7 +39,8 @@ void handle_msg(void) {
     puts(">: Msg sent!");
 }
 
-int main(void) {
+int main(void)
+{
     puts("--------------------------------------------\n"
          "|   ~Welcome to l33t-m$n ~    v1337        |\n"
          "-------------------------------------------");
