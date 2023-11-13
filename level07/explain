@@ -115,7 +115,7 @@ Pour bypasser cela on peut utiliser la formule:
 
 Ce qui nous donne:
 
-	-1073741938
+	1073741938
 
 On peut maintenant ecrire au bon index.
 On recupere l'adresse de system et de /bin/sh:
