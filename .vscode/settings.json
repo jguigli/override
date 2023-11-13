@@ -1,0 +1,11 @@
+{
+	"files.associations": {
+		"source": "c",
+		"fcntl.h": "c",
+		"string.h": "c",
+		"type_traits": "c",
+		"*.tcc": "c",
+		"string": "c",
+		"string_view": "c"
+	}
+}

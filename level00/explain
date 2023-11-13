@@ -1,0 +1,26 @@
+### Level00
+
+Ce programme nous demande un password.
+Si le mot de passe est bon, il ouvre un shell avec les droits du programme donc du level01.
+
+Le programme fait une simple comparaison avec la valeur decimale 5276 :
+
+	if (password[0] != 5276)
+	{
+		puts("\nInvalid Password!");
+	}
+	else {
+		puts("\nAuthenticated!");
+		system("/bin/sh");
+	}
+
+Le scanf nous permet de remplir le premier index de notre tableau d'entier de taille 4.
+
+	level00@OverRide:~$ ./level00 
+	***********************************
+	* 	     -Level00 -		  *
+	***********************************
+	Password:5276
+
+	Authenticated!
+	$ 
