@@ -108,14 +108,21 @@ En hexa cela donne: 0xF7E45513 qui est bien l'adresse de retour du main.
 
 Maintenant qu'on sait ou se trouve eip on peut faire un ret2libc.
 Le probleme est qu'on ne peut pas ecrire a l'index 114 a cause du if % 3.
-Pour bypasser cela on peut utiliser la formule:
+Cependant dans le code assembleur, le programme multiplie l'index par 4 car le tableau est de type char[400].
+Cela correspond a un tableau d'int[100]. Donc pour acceder au 114eme element le programme multiplie par 4 octets l'index donnee :
 
-	(UINTMAX + 1) / 4 + 114
+	0x080486c2 <+146>:	mov    -0xc(%ebp),%eax
+   	0x080486c5 <+149>:	shl    $0x2,%eax			<===== shift de 2 sur la gauche (multiplication * 4)
+
+Pour bypasser la condition du if % 3, il est possible d'overflow la valeur UINTMAX pour retourner a 0 + 114.
+On peut utiliser la formule :
+
+	(UINTMAX + 1) / 4 + [index]
 	4294967296 / 4 + 114
 
 Ce qui nous donne:
 
-	-1073741938
+	1073741938
 
 On peut maintenant ecrire au bon index.
 On recupere l'adresse de system et de /bin/sh:

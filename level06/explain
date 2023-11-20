@@ -20,7 +20,7 @@ On utilise GDB sur le binaire :
 
 On met un breakpoint a l'instruction suivant ptrace() :
 
-    (gdb) b *main+114
+    (gdb) b *auth+114
 
     [...]
     0x080487b5 <+109>:	call   0x80485f0 <ptrace@plt>
@@ -33,7 +33,7 @@ Ici le programme compare $eax (retour de ptrace) a -1. On modifie la valeur dans
 
 On met ensuite un breakpoint sur la comparaison entre le numero de serie ($eax) et le hash (-0x10(%ebp)) :
 
-    (gdb) b *main+286
+    (gdb) b *auth+286
 
     [...]
     0x08048866 <+286>:	cmp    -0x10(%ebp),%eax
